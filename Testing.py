@@ -1,9 +1,9 @@
 import requests
 import json
-from datetime import datetime
 import pytz
 import tzlocal
 import numpy
+from datetime import datetime
 
 #additional function
 def name_matches(id_match):
@@ -38,8 +38,6 @@ def average_score_last5(id_match):
 
     home_skip = median_goal(get_team_id(id_match).get("home")).get("concead")
     away_skip = median_goal(get_team_id(id_match).get("away")).get("concead")
-
-    print(home_score)
 
     return str(home_score) + " - " + str(away_score) +"----"+str(home_skip) + " - " + str(away_skip)
 
@@ -96,7 +94,7 @@ def goal_more_1_5_ver2(id_match):
     team_home = median_goal(matches.get("home"))
     team_away = median_goal(matches.get("away"))
 
-    if float(team_home.get("goal")) >= 1.5 and float(team_away.get("goal")) >= 1.5:
+    if float(team_home.get("goal")) >= 1.5 or float(team_away.get("goal")) >= 1.5:
         if float(team_home.get("concead")) >= 1.5 or float(team_away.get("concead")) >= 1.5:
             return 1
         else:
@@ -285,7 +283,7 @@ def from_betting():
     for y in range(1,100):
         url = "https://api-football-v1.p.rapidapi.com/v3/odds"
 
-        querystring = {"date":"2021-07-25","page":str(y),"bet":"2"}
+        querystring = {"date":"2021-08-13","page":str(y),"bet":"2"}
 
         headers = {
             'x-rapidapi-key': "7b3a1604c1msh29e37f4ff094a22p190becjsn363c36fc7ada",
@@ -301,14 +299,32 @@ def from_betting():
                 home = json_betting["response"][x]["bookmakers"][0]["bets"][0]["values"]
                 id_fixture= json_betting["response"][x]["fixture"]["id"]
                 if goal_more_1_5(id_fixture) > 0:
-                    print(str(home)+"-"+ str(id_fixture)+" - " + str(get_time_match(id_fixture)) +" - " + name_matches(id_fixture)+ " - "+average_score_last5(id_fixture)+" - "+str(goal_time(id_fixture)))
+                    print(str(home)+"|"+ str(id_fixture)+" | " + str(get_time_match(id_fixture)) +" | " + name_matches(id_fixture)+ " | "+average_score_last5(id_fixture)+" | "+str(goal_time(id_fixture)))
             except UnicodeEncodeError:
                 print("error")
+
+def get_fixtures(date):
+    url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
+
+    querystring = {"date": date}
+
+    headers = {
+        'x-rapidapi-key': "7b3a1604c1msh29e37f4ff094a22p190becjsn363c36fc7ada",
+        'x-rapidapi-host': "api-football-v1.p.rapidapi.com"
+    }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
+
+    json_fixture = json.loads(response.content)
+    id_fixture=[]
+    for x in range(0, len(json_fixture["response"])):
+        id_fixture.append(json_fixture["response"][x]["fixture"]["id"])
+    return id_fixture
 
 def from_fixture():
     url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
 
-    querystring = {"date": "2021-07-30"}
+    querystring = {"date": "2021-08-16"}
 
     headers = {
         'x-rapidapi-key': "7b3a1604c1msh29e37f4ff094a22p190becjsn363c36fc7ada",
@@ -337,5 +353,116 @@ def from_fixture():
             print("Error"+competitors)
             continue
 
+def strike_win_H2H(home,away):
+
+    url = "https://api-football-v1.p.rapidapi.com/v3/fixtures/headtohead"
+
+    querystring = {"h2h": str(home)+"-"+str(away), "status": "FT"}
+
+    headers = {
+        'x-rapidapi-key': "7b3a1604c1msh29e37f4ff094a22p190becjsn363c36fc7ada",
+        'x-rapidapi-host': "api-football-v1.p.rapidapi.com"
+    }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
+
+    result_matches = json.loads(response.content)
+    home_win=0
+    away_win=0
+    draw=0
+    for x in result_matches["response"]:
+        date_match=x["fixture"]["date"]
+        date_match = datetime.strptime(date_match[0:19], "%Y-%m-%dT%H:%M:%S")
+        if (date_match>datetime(2019,1,1) and date_match<datetime(2021,10,9)):
+
+            if x["teams"]["home"]["id"]==home:
+                if x["goals"]["home"]>x["goals"]["away"]:
+                    home_win+=1
+
+            if x["teams"]["away"]["id"]==home:
+                if x["goals"]["home"] < x["goals"]["away"]:
+                    home_win+=1
+
+            if x["teams"]["home"]["id"] == away:
+                if x["goals"]["home"] > x["goals"]["away"]:
+                    away_win += 1
+
+            if x["teams"]["away"]["id"] == away:
+                if x["goals"]["home"] < x["goals"]["away"]:
+                    away_win += 1
+
+
+            if x["goals"]["home"] == x["goals"]["away"]:
+                draw += 1
+
+
+    return [home_win,away_win,draw]
+
+def intial_strike_win(date):
+    for x in get_fixtures(date):
+        teams_id=get_team_id(x)
+        #print(x)
+        #print(name_matches(x))
+        #print(strike_win_H2H(teams_id.get("home"),teams_id.get("away")))
+        strike=strike_win_H2H(teams_id.get("home"),teams_id.get("away"))
+        if strike[2]<=1:
+            print(x)
+            print(get_time_match(x))
+            print(strike)
+            print(str(result_last5_games(teams_id.get("home")))+"-"+str(result_last5_games(teams_id.get("away"))))
+            print(name_matches(x))
+
+def result_last5_games(team):
+    url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
+
+    querystring = {"team": str(team), "last": "6", "status":"FT"}
+
+    headers = {
+        'x-rapidapi-key': "7b3a1604c1msh29e37f4ff094a22p190becjsn363c36fc7ada",
+        'x-rapidapi-host': "api-football-v1.p.rapidapi.com"
+    }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
+
+    json_team = json.loads(response.content)
+
+    json_team = json_team["response"]
+
+    last_5_matches=[]
+
+    for x in json_team:
+
+        if x["teams"]["home"]["id"]==team:
+            if x["teams"]["home"]['winner']==True:
+                last_5_matches.append(3)
+
+        if x["teams"]["away"]["id"]==team:
+            if x["teams"]["away"]['winner']==True:
+                last_5_matches.append(3)
+
+        if x["teams"]["home"]["id"] == team:
+            if x["teams"]["home"]['winner'] == False:
+                last_5_matches.append(0)
+
+        if x["teams"]["away"]["id"] == team:
+            if x["teams"]["away"]['winner'] == False:
+                last_5_matches.append(0)
+
+
+        if x["teams"]["home"]['winner']!=True and x["teams"]["away"]['winner']!=True:
+                last_5_matches.append(1)
+
+
+    return last_5_matches
+
+def goal_after_75_min():
+
+    fixtures_day = get_fixtures("2021-08-15")
+
+    for x in fixtures_day:
+        if (len(goal_time(x))>0):
+            if goal_time(x)[0]>75:
+                print(x)
+                print(goal_time(x))
 
 from_fixture()

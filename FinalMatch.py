@@ -4,26 +4,46 @@ from datetime import datetime
 import pytz
 import tzlocal
 
-url = "https://football-prediction-api.p.rapidapi.com/api/v2/predictions"
+def get_id_live_matches(login,token,sport="icehockey"):
+    url = "https://spoyer.ru/api/get.php?login="+login+"&token="+token+"&task=livedata&sport="+sport
 
-querystring = {"market":"classic","iso_date":"2021-07-25","federation":"UEFA"}
+    response = requests.request("GET", url)
 
-headers = {
-    'x-rapidapi-key': "7b3a1604c1msh29e37f4ff094a22p190becjsn363c36fc7ada",
-    'x-rapidapi-host': "football-prediction-api.p.rapidapi.com"
-    }
+    json_matches = json.loads(response.content)
 
-response = requests.request("GET", url, headers=headers, params=querystring)
+    arr_id=[]
 
-json_matches = json.loads(response.content)
-print(json_matches)
-for x in range(0,len(json_matches["data"])):
-    home_team = json_matches["data"][x]["home_team"]
-    away_team = json_matches["data"][x]["away_team"]
-    prediction = json_matches["data"][x]["prediction"]
-    status = json_matches["data"][x]["status"]
-    start_date = json_matches["data"][x]["start_date"]
-    odds = json_matches["data"][x]["odds"][str(prediction)]
-    if prediction == "1" or prediction == "2":
-        if odds < 1.7:
-            print(start_date + " --- " + home_team + " --- " + away_team + " --- " + str(prediction) + " --- " + status+ " --- " +str(odds))
+    for x in json_matches["games_live"]:
+        arr_id.append(x['game_id'])
+
+    return arr_id
+
+def get_time_has_passed(login,token,id):
+    url = "https://spoyer.ru/api/get.php?login=" + login + "&token=" + token + "&task=eventdata&game_id=" + id
+
+    response = requests.request("GET", url)
+
+    json_match = json.loads(response.content)
+
+    return json_match['results']
+
+def get_matches_today(login,token,sport="icehockey"):
+    url = "https://spoyer.ru/api/get.php?login=" + login + "&token=" + token + "&task=predata&sport="+sport+"&day=today"
+
+    response = requests.request("GET", url)
+
+    json_matches = json.loads(response.content)
+
+    arr_id = []
+    print((json_matches))
+    print(len(json_matches['games_pre']))
+
+
+
+
+odd_pre_match("iclicks","58664-Uw1Jz4CY445b51m")
+#get_matches_today("iclicks","58664-Uw1Jz4CY445b51m")
+# arr=get_id_live_matches("iclicks","58664-Uw1Jz4CY445b51m")
+# print(arr)
+# for x in arr:
+#     print(get_time_has_passed("iclicks","58664-Uw1Jz4CY445b51m",x))
